@@ -20,10 +20,6 @@ void loop() {
   int buttonState = digitalRead(BUTTON_PIN);
   if (ledState != buttonState) {
     ledState = buttonState;
-	// Изменяем состояние светодиода
-	// Так как значения для внутренних светодиодов должно быть инвертировано
-	// вместо !ledState посылаем ledState
-	// Особенность платы
     digitalWrite(TX_LED_PIN, ledState);
   }
 }
