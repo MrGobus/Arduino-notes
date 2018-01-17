@@ -7,23 +7,22 @@
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 MFRC522::StatusCode status;
 
-/*
- * Заводской ключ доступа к блокам A = 0xFFFFFF, B = 0xFFFFFF
- * Ключи A и B нужны для получения досутпа чтения записи данных
- */
- 
-MFRC522::MIFARE_Key key = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-
 /** 
  * Печатает массив байт в виде HEX значений
  * @param buffer - указатель на буффер
  * @param bufferSize - размер буфера
  */
 
-void dumpByteArray(byte *buffer, byte bufferSize) {
+void dumpByteArray(byte *buffer, byte bufferSize, int ascii) {
     for (byte i = 0; i < bufferSize; i++) {
         Serial.print(buffer[i] < 0x10 ? " 0" : " ");
         Serial.print(buffer[i], HEX);
+    }
+    if (ascii) {
+      Serial.print("  |  ");
+      for (char i = 0; i < bufferSize; i++) {
+        Serial.write((buffer[i] > 32 && buffer[i] < 127) ? buffer[i] : ' ');
+      }
     }
 }
 
@@ -66,7 +65,7 @@ void loop() {
    */
    
   Serial.print("Card UID:");
-  dumpByteArray(mfrc522.uid.uidByte, mfrc522.uid.size);
+  dumpByteArray(mfrc522.uid.uidByte, mfrc522.uid.size, 0);
   Serial.println();
   Serial.print(F("PICC type: "));
   MFRC522::PICC_Type piccType = mfrc522.PICC_GetType(mfrc522.uid.sak);
@@ -93,11 +92,18 @@ void loop() {
   #define BLOCK 8
   #define TRAILER_BLOCK 11
 
+  /*
+   * Заводской ключ доступа к блокам A = 0xFFFFFF, B = 0xFFFFFF
+   * Ключи A и B нужны для получения досутпа чтения записи данных
+   */
+   
+  MFRC522::MIFARE_Key key = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+
   /**
-   * Аунтификация по коду B
+   * Аунтификация
    */
 
-  status = (MFRC522::StatusCode) mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_B, TRAILER_BLOCK, &key, &(mfrc522.uid));
+  status = (MFRC522::StatusCode) mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, TRAILER_BLOCK, &key, &(mfrc522.uid));
   if (status != MFRC522::STATUS_OK) {
     Serial.print(F("PCD_Authenticate() failed: "));
     Serial.println(mfrc522.GetStatusCodeName(status));
@@ -105,16 +111,39 @@ void loop() {
   }
 
   /**
-   * Данные для записи
+   * Записываем данные
    */
 
-  const char data[] = {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', 0};
+  const char data[16] = {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', 0};
+  Serial.println("write data");
+  dumpByteArray(data, sizeof(data), 1);
+  Serial.println("");
 
-  Serial.print("access granted\n");
+  status = (MFRC522::StatusCode) mfrc522.MIFARE_Write(BLOCK, data, 16);
+  if (status != MFRC522::STATUS_OK) {
+    Serial.print(F("MIFARE_Write() failed: "));
+    Serial.println(mfrc522.GetStatusCodeName(status));    
+  }
 
-  // Записываем данные
-  // <<--------------- КОДИТЬ ТУТ!!!
+  /**
+   * Читаем записанное
+   * 
+   * Размер буфера должен быть на 2 байта больше требуемого так как в конец добавляется 2 байта контрольной суммы
+   * Размер задается отдельной переменной, так как в нее будет занесено кол-во прочитанных байт
+   */
 
+  char readBuffer[18]; 
+  char size = 18;
+  status = (MFRC522::StatusCode) mfrc522.MIFARE_Read(BLOCK, readBuffer, &size);
+  Serial.println("read data");
+  if (status != MFRC522::STATUS_OK) {
+    Serial.print(F("MIFARE_Read() failed: "));
+    Serial.println(mfrc522.GetStatusCodeName(status));    
+  } else {
+    dumpByteArray(readBuffer, sizeof(readBuffer), 1);  
+    Serial.println();
+  }
+  
   /**
    * Сбрасываем адаптер для следующего чтения
    */
