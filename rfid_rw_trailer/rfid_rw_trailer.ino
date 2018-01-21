@@ -5,21 +5,21 @@
 #define SS_PIN 10
 
 /*
- * Будем работать с сектором 2
- * Сектор 0 хранит системную информацию, его лучше не трогать.
- * В теории он защищен от записи, хотя я видел печальные истории
- * о запоротых метках при попытке записать информацию в
- * нулевой сектор.
- * Сектор 1 может быть зарезервирован для CIS индексов, не знаю
- * что это, думаю лучше не трогать.
- *
- * Память метки разделена на сектора по 64 байта
- * Каждый сектор разделен на 4 блока
- * Первые три блока каждого сектора используются для хранения данных
- * Четвертый блок хранит информацию о ключах и права доступа
- * Не зная ключа A или B сектора нельзя получить доступ к данным
- * По умолчанию ключ 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF
- */
+   Будем работать с сектором 2
+   Сектор 0 хранит системную информацию, его лучше не трогать.
+   В теории он защищен от записи, хотя я видел печальные истории
+   о запоротых метках при попытке записать информацию в
+   нулевой сектор.
+   Сектор 1 может быть зарезервирован для CIS индексов, не знаю
+   что это, думаю лучше не трогать.
+
+   Память метки разделена на сектора по 64 байта
+   Каждый сектор разделен на 4 блока
+   Первые три блока каждого сектора используются для хранения данных
+   Четвертый блок хранит информацию о ключах и права доступа
+   Не зная ключа A или B сектора нельзя получить доступ к данным
+   По умолчанию ключ 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF
+*/
 
 #define SECTOR 3
 #define BLOCK SECTOR * 4
@@ -28,7 +28,7 @@
 #define AUTH_KEY MFRC522::PICC_CMD_MF_AUTH_KEY_B
 
 MFRC522::MIFARE_Key defaultKey = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-MFRC522::MIFARE_Key key = {{0x01, 0x02, 0x03, 0x04, 0x05, 0x06}};
+MFRC522::MIFARE_Key key = {{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 MFRC522::StatusCode status;
@@ -40,17 +40,17 @@ byte readBuffer[18];
 byte size;
 
 const byte trailerData[16] = {
- 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // key A
- 0x0F, 0x00, 0xFF, // access bits
- 0x00, // user data
- 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 // key B
+  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // key A
+  0xFF, 0x07, 0x80, // access bits
+  0x69, // user data
+  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF // key B
 };
 
 /**
- * Печатает массив байт в виде HEX значений
- * @param buffer - указатель на буффер
- * @param bufferSize - размер буфера
- */
+   Печатает массив байт в виде HEX значений
+   @param buffer - указатель на буффер
+   @param bufferSize - размер буфера
+*/
 
 void dumpByteArray(byte *buffer, byte bufferSize, int ascii) {
   for (byte i = 0; i < bufferSize; i++) {
@@ -66,8 +66,8 @@ void dumpByteArray(byte *buffer, byte bufferSize, int ascii) {
 }
 
 /**
- * Инициализация
- */
+   Инициализация
+*/
 
 void setup() {
   Serial.begin(9600);
@@ -82,30 +82,30 @@ void setup() {
 }
 
 /**
- * Системный цикл
- */
+   Системный цикл
+*/
 
 void loop() {
 
   /*
-   * Проверяем, поднесена ли карта
-   */
+     Проверяем, поднесена ли карта
+  */
 
   if (!mfrc522.PICC_IsNewCardPresent()) {
     return;
   }
 
   /*
-   * Пробуем прочесть серийную информацию
-   */
+     Пробуем прочесть серийную информацию
+  */
 
   if (!mfrc522.PICC_ReadCardSerial()) {
     goto finalize;
   }
 
   /*
-   * Выводим серийную информацию карты
-   */
+     Выводим серийную информацию карты
+  */
 
   Serial.print("Card UID:");
   dumpByteArray(mfrc522.uid.uidByte, mfrc522.uid.size, 0);
@@ -115,20 +115,20 @@ void loop() {
   Serial.println(mfrc522.PICC_GetTypeName(piccType));
 
   /*
-   * Аутентификация
-   */
+     Аутентификация
+  */
 
-  Serial.println("Authenticate key A (0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF)");
+  Serial.println("Authenticate");
   status = (MFRC522::StatusCode) mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, TRAILER_BLOCK, &defaultKey, &(mfrc522.uid));
   if (status != MFRC522::STATUS_OK) {
-	  Serial.print(F("PCD_Authenticate() failed: "));
+    Serial.print(F("PCD_Authenticate() failed: "));
     Serial.println(mfrc522.GetStatusCodeName(status));
     //goto finalize;
   } else {
 
     /*
-     * Записываем данные
-     */
+       Записываем данные
+    */
 
     Serial.println("write data");
     dumpByteArray(data, sizeof(data), 1);
@@ -141,11 +141,11 @@ void loop() {
     }
 
     /*
-     * Читаем записанное
-     *
-     * Размер буфера должен быть на 2 байта больше требуемого так как в конец добавляется 2 байта контрольной суммы
-     * Размер задается отдельной переменной, так как в нее будет занесено кол-во прочитанных байт
-     */
+       Читаем записанное
+
+       Размер буфера должен быть на 2 байта больше требуемого так как в конец добавляется 2 байта контрольной суммы
+       Размер задается отдельной переменной, так как в нее будет занесено кол-во прочитанных байт
+    */
 
     size = sizeof(readBuffer);
     status = (MFRC522::StatusCode) mfrc522.MIFARE_Read(BLOCK, readBuffer, &size);
@@ -159,25 +159,44 @@ void loop() {
     Serial.println();
 
     /*
-     * Перезаписываем trailer
-     */
+       Читаем trailer
+    */
+
+    size = sizeof(readBuffer);
+    status = (MFRC522::StatusCode) mfrc522.MIFARE_Read(TRAILER_BLOCK, readBuffer, &size);
+    Serial.println("read trailer data");
+    if (status != MFRC522::STATUS_OK) {
+      Serial.print(F("MIFARE_Read() failed: "));
+      Serial.println(mfrc522.GetStatusCodeName(status));
+      goto finalize;
+    }
+    dumpByteArray(readBuffer, sizeof(readBuffer), 1);
+    Serial.println();
+
+    /*
+       Перезаписываем trailer
+    */
 
     Serial.println("write trailer data");
-  	status = (MFRC522::StatusCode) mfrc522.MIFARE_Write(TRAILER_BLOCK, data, 16);
+    status = (MFRC522::StatusCode) mfrc522.MIFARE_Write(TRAILER_BLOCK, trailerData, 16);
     if (status != MFRC522::STATUS_OK) {
       Serial.print(F("MIFARE_Write() failed: "));
       Serial.println(mfrc522.GetStatusCodeName(status));
       goto finalize;
     }
+    Serial.println("done");
 
     goto finalize;
   }
 
-   /*
-    * Пробуем прочитать сектор с новым ключем
-    */
+  /*
+     Пробуем прочитать сектор с новым ключем
+  */
 
   Serial.println("Authenticate");
+  Serial.print("key");
+  dumpByteArray((byte*)&key, sizeof(key), 1);
+  Serial.println();
   status = (MFRC522::StatusCode) mfrc522.PCD_Authenticate(AUTH_KEY, TRAILER_BLOCK, &key, &(mfrc522.uid));
   if (status != MFRC522::STATUS_OK) {
     Serial.print(F("PCD_Authenticate() failed: "));
@@ -187,11 +206,11 @@ void loop() {
     Serial.println("success");
 
     /*
-     * Читаем записанное
-     *
-     * Размер буфера должен быть на 2 байта больше требуемого так как в конец добавляется 2 байта контрольной суммы
-     * Размер задается отдельной переменной, так как в нее будет занесено кол-во прочитанных байт
-     */
+       Читаем записанное
+
+       Размер буфера должен быть на 2 байта больше требуемого так как в конец добавляется 2 байта контрольной суммы
+       Размер задается отдельной переменной, так как в нее будет занесено кол-во прочитанных байт
+    */
 
     size = sizeof(readBuffer);
     status = (MFRC522::StatusCode) mfrc522.MIFARE_Read(BLOCK, readBuffer, &size);
@@ -207,7 +226,7 @@ void loop() {
     goto finalize;
   }
 
-  finalize: {
+finalize: {
     mfrc522.PICC_HaltA();
     mfrc522.PCD_StopCrypto1();
   }
