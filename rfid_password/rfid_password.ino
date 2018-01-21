@@ -3,10 +3,6 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
-#define RED_LED_PIN 2 // Пин красного светодиода (ошибка карты)
-#define GREE_LED_PIN 3 // Пин зеленого светодиода (все ок)
-#define YELLOW_LED_PIN 4 // Пин желтого светодиода (режим установки пароля)
-
 // Ключ сектора по умолчанию.
 MFRC522::MIFARE_Key defaultKey = {
   {
